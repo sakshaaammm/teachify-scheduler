@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,13 @@ const Subjects = () => {
     lecturesPerWeek: 1,
   });
 
+  useEffect(() => {
+    const savedSubjects = localStorage.getItem("subjects");
+    if (savedSubjects) {
+      setSubjects(JSON.parse(savedSubjects));
+    }
+  }, []);
+
   const handleAddSubject = () => {
     if (!newSubject.name) {
       toast.error("Please enter subject name");
@@ -30,7 +37,9 @@ const Subjects = () => {
       lecturesPerWeek: newSubject.lecturesPerWeek || 1,
     };
 
-    setSubjects([...subjects, subject]);
+    const updatedSubjects = [...subjects, subject];
+    setSubjects(updatedSubjects);
+    localStorage.setItem("subjects", JSON.stringify(updatedSubjects));
     setNewSubject({
       name: "",
       isLab: false,

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ const Classes = () => {
     subjects: [],
   });
 
+  useEffect(() => {
+    const savedClasses = localStorage.getItem("classes");
+    if (savedClasses) {
+      setClasses(JSON.parse(savedClasses));
+    }
+  }, []);
+
   const handleAddClass = () => {
     if (!newClass.name) {
       toast.error("Please enter class name");
@@ -25,7 +32,9 @@ const Classes = () => {
       subjects: newClass.subjects || [],
     };
 
-    setClasses([...classes, classItem]);
+    const updatedClasses = [...classes, classItem];
+    setClasses(updatedClasses);
+    localStorage.setItem("classes", JSON.stringify(updatedClasses));
     setNewClass({ name: "", subjects: [] });
     toast.success("Class added successfully!");
   };
