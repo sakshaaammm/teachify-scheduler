@@ -44,8 +44,44 @@ const Generate = () => {
     if (savedClasses) setClasses(JSON.parse(savedClasses));
     if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
     if (savedTeachers) setTeachers(JSON.parse(savedTeachers));
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
+    if (savedSettings) {
+      const parsedSettings = JSON.parse(savedSettings);
+      setSettings({
+        ...settings,
+        ...parsedSettings,
+        shortBreaks: {
+          ...settings.shortBreaks,
+          ...parsedSettings.shortBreaks
+        }
+      });
+    }
   }, []);
+
+  const isBreakTime = (time: string, settings: TimeTableSettings): { isBreak: boolean; duration: number } => {
+    const timeInMinutes = (t: string) => {
+      const [hours, minutes] = t.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const currentTimeInMinutes = timeInMinutes(time);
+    
+    // Check first short break
+    if (timeInMinutes(settings.shortBreaks.first.start) === currentTimeInMinutes) {
+      return { isBreak: true, duration: settings.shortBreaks.first.duration };
+    }
+    
+    // Check second short break
+    if (timeInMinutes(settings.shortBreaks.second.start) === currentTimeInMinutes) {
+      return { isBreak: true, duration: settings.shortBreaks.second.duration };
+    }
+    
+    // Check lunch break
+    if (timeInMinutes(settings.lunchBreak.start) === currentTimeInMinutes) {
+      return { isBreak: true, duration: settings.lunchBreak.duration };
+    }
+
+    return { isBreak: false, duration: 0 };
+  };
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -58,31 +94,17 @@ const Generate = () => {
         minute: '2-digit',
         hour12: false 
       });
+
       slots.push(timeString);
       
-      // Add lecture length
-      currentTime = new Date(currentTime.getTime() + settings.lectureLength * 60000);
+      // Check if current time is a break time
+      const breakCheck = isBreakTime(timeString, settings);
       
-      // Check for breaks
-      const currentTimeStr = currentTime.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      });
-
-      // First short break
-      if (currentTimeStr === settings.shortBreaks.first.start) {
-        currentTime = new Date(currentTime.getTime() + settings.shortBreaks.first.duration * 60000);
-      }
-      // Second short break
-      else if (currentTimeStr === settings.shortBreaks.second.start) {
-        currentTime = new Date(currentTime.getTime() + settings.shortBreaks.second.duration * 60000);
-      }
-      // Lunch break
-      else if (currentTimeStr === settings.lunchBreak.start) {
-        currentTime = new Date(currentTime.getTime() + settings.lunchBreak.duration * 60000);
-      }
+      // Add either break duration or lecture length
+      const minutesToAdd = breakCheck.isBreak ? breakCheck.duration : settings.lectureLength;
+      currentTime = new Date(currentTime.getTime() + minutesToAdd * 60000);
     }
+    
     return slots;
   };
 
@@ -95,19 +117,22 @@ const Generate = () => {
       
       // Initialize empty timetable
       const generatedTimetable = days.map(day => 
-        timeSlots.map(slot => ({
-          time: slot,
-          day: day,
-          subject: "Free",
-          teacher: "-"
-        }))
+        timeSlots.map(slot => {
+          const breakCheck = isBreakTime(slot, settings);
+          return {
+            time: slot,
+            day: day,
+            subject: breakCheck.isBreak ? "Break" : "Free",
+            teacher: breakCheck.isBreak ? "-" : "-"
+          };
+        })
       );
 
       setTimetable(generatedTimetable);
       toast.success("Timetable generated successfully!");
     } catch (error) {
+      console.error("Generation error:", error);
       toast.error("Error generating timetable");
-      console.error(error);
     } finally {
       setIsGenerating(false);
     }
