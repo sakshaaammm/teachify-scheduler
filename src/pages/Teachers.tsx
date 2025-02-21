@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Teacher } from "@/types";
 import { toast } from "sonner";
+import { Select } from "@/components/ui/select";
 
 const Teachers = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -12,7 +13,19 @@ const Teachers = () => {
     name: "",
     subjects: [],
     preferredHours: 0,
+    preferences: {
+      startTime: "",
+      endTime: "",
+      preferredSlots: [],
+    },
   });
+
+  useEffect(() => {
+    const savedTeachers = localStorage.getItem("teachers");
+    if (savedTeachers) {
+      setTeachers(JSON.parse(savedTeachers));
+    }
+  }, []);
 
   const handleAddTeacher = () => {
     if (!newTeacher.name) {
@@ -25,11 +38,26 @@ const Teachers = () => {
       name: newTeacher.name,
       subjects: newTeacher.subjects || [],
       preferredHours: newTeacher.preferredHours || 0,
-      preferences: {},
+      preferences: {
+        startTime: newTeacher.preferences?.startTime || "",
+        endTime: newTeacher.preferences?.endTime || "",
+        preferredSlots: newTeacher.preferences?.preferredSlots || [],
+      },
     };
 
-    setTeachers([...teachers, teacher]);
-    setNewTeacher({ name: "", subjects: [], preferredHours: 0 });
+    const updatedTeachers = [...teachers, teacher];
+    setTeachers(updatedTeachers);
+    localStorage.setItem("teachers", JSON.stringify(updatedTeachers));
+    setNewTeacher({
+      name: "",
+      subjects: [],
+      preferredHours: 0,
+      preferences: {
+        startTime: "",
+        endTime: "",
+        preferredSlots: [],
+      },
+    });
     toast.success("Teacher added successfully!");
   };
 
@@ -51,6 +79,55 @@ const Teachers = () => {
               }
             />
           </div>
+          <div className="space-y-2">
+            <Input
+              type="number"
+              placeholder="Preferred Hours per Week"
+              value={newTeacher.preferredHours}
+              onChange={(e) =>
+                setNewTeacher({
+                  ...newTeacher,
+                  preferredHours: parseInt(e.target.value),
+                })
+              }
+              min={0}
+              max={40}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label>Preferred Start Time</label>
+              <Input
+                type="time"
+                value={newTeacher.preferences?.startTime}
+                onChange={(e) =>
+                  setNewTeacher({
+                    ...newTeacher,
+                    preferences: {
+                      ...newTeacher.preferences,
+                      startTime: e.target.value,
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label>Preferred End Time</label>
+              <Input
+                type="time"
+                value={newTeacher.preferences?.endTime}
+                onChange={(e) =>
+                  setNewTeacher({
+                    ...newTeacher,
+                    preferences: {
+                      ...newTeacher.preferences,
+                      endTime: e.target.value,
+                    },
+                  })
+                }
+              />
+            </div>
+          </div>
           <Button onClick={handleAddTeacher} className="w-full">
             Add Teacher
           </Button>
@@ -64,7 +141,9 @@ const Teachers = () => {
               <CardTitle>{teacher.name}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Preferred Hours: {teacher.preferredHours}</p>
+              <p>Weekly Hours: {teacher.preferredHours}</p>
+              <p>Start Time: {teacher.preferences.startTime || "Flexible"}</p>
+              <p>End Time: {teacher.preferences.endTime || "Flexible"}</p>
               <p>Subjects: {teacher.subjects.join(", ") || "None assigned"}</p>
             </CardContent>
           </Card>

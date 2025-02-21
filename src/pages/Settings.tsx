@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TimeTableSettings } from "@/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 const Settings = () => {
@@ -17,6 +17,13 @@ const Settings = () => {
       duration: 60,
     },
   });
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("timetableSettings");
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+  }, []);
 
   const handleSave = () => {
     localStorage.setItem("timetableSettings", JSON.stringify(settings));
@@ -33,7 +40,7 @@ const Settings = () => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label>Start Time</label>
+              <label>School Start Time</label>
               <Input
                 type="time"
                 value={settings.startTime}
@@ -43,7 +50,7 @@ const Settings = () => {
               />
             </div>
             <div className="space-y-2">
-              <label>End Time</label>
+              <label>School End Time</label>
               <Input
                 type="time"
                 value={settings.endTime}
@@ -66,17 +73,19 @@ const Settings = () => {
               />
             </div>
             <div className="space-y-2">
-              <label>Break Time (minutes)</label>
+              <label>Short Break Duration (minutes)</label>
               <Input
                 type="number"
                 value={settings.breakTime}
                 onChange={(e) =>
                   setSettings({ ...settings, breakTime: parseInt(e.target.value) })
                 }
+                min={10}
+                max={15}
               />
             </div>
             <div className="space-y-2">
-              <label>Lunch Break Start</label>
+              <label>Lunch Break Start Time</label>
               <Input
                 type="time"
                 value={settings.lunchBreak.start}
@@ -102,6 +111,8 @@ const Settings = () => {
                     },
                   })
                 }
+                min={30}
+                max={60}
               />
             </div>
           </div>
