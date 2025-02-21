@@ -11,7 +11,16 @@ const Settings = () => {
     startTime: "09:00",
     endTime: "17:00",
     lectureLength: 60,
-    breakTime: 10,
+    shortBreaks: {
+      first: {
+        start: "10:30",
+        duration: 10,
+      },
+      second: {
+        start: "14:30",
+        duration: 10,
+      }
+    },
     lunchBreak: {
       start: "13:00",
       duration: 60,
@@ -72,18 +81,92 @@ const Settings = () => {
                 }
               />
             </div>
+
+            {/* First Short Break */}
             <div className="space-y-2">
-              <label>Short Break Duration (minutes)</label>
+              <label>First Break Start Time</label>
+              <Input
+                type="time"
+                value={settings.shortBreaks.first.start}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    shortBreaks: {
+                      ...settings.shortBreaks,
+                      first: {
+                        ...settings.shortBreaks.first,
+                        start: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label>First Break Duration (minutes)</label>
               <Input
                 type="number"
-                value={settings.breakTime}
+                value={settings.shortBreaks.first.duration}
                 onChange={(e) =>
-                  setSettings({ ...settings, breakTime: parseInt(e.target.value) })
+                  setSettings({
+                    ...settings,
+                    shortBreaks: {
+                      ...settings.shortBreaks,
+                      first: {
+                        ...settings.shortBreaks.first,
+                        duration: parseInt(e.target.value),
+                      },
+                    },
+                  })
                 }
                 min={10}
                 max={15}
               />
             </div>
+
+            {/* Second Short Break */}
+            <div className="space-y-2">
+              <label>Second Break Start Time</label>
+              <Input
+                type="time"
+                value={settings.shortBreaks.second.start}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    shortBreaks: {
+                      ...settings.shortBreaks,
+                      second: {
+                        ...settings.shortBreaks.second,
+                        start: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label>Second Break Duration (minutes)</label>
+              <Input
+                type="number"
+                value={settings.shortBreaks.second.duration}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    shortBreaks: {
+                      ...settings.shortBreaks,
+                      second: {
+                        ...settings.shortBreaks.second,
+                        duration: parseInt(e.target.value),
+                      },
+                    },
+                  })
+                }
+                min={10}
+                max={15}
+              />
+            </div>
+
+            {/* Lunch Break */}
             <div className="space-y-2">
               <label>Lunch Break Start Time</label>
               <Input

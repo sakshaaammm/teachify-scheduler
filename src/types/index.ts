@@ -29,7 +29,16 @@ export interface TimeTableSettings {
   startTime: string;
   endTime: string;
   lectureLength: number;
-  breakTime: number;
+  shortBreaks: {
+    first: {
+      start: string;
+      duration: number;
+    };
+    second: {
+      start: string;
+      duration: number;
+    };
+  };
   lunchBreak: {
     start: string;
     duration: number;
