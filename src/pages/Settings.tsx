@@ -6,31 +6,42 @@ import { TimeTableSettings } from "@/types";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
+const defaultSettings: TimeTableSettings = {
+  startTime: "09:00",
+  endTime: "17:00",
+  lectureLength: 60,
+  shortBreaks: {
+    first: {
+      start: "10:30",
+      duration: 10,
+    },
+    second: {
+      start: "14:30",
+      duration: 10,
+    }
+  },
+  lunchBreak: {
+    start: "13:00",
+    duration: 60,
+  },
+};
+
 const Settings = () => {
-  const [settings, setSettings] = useState<TimeTableSettings>({
-    startTime: "09:00",
-    endTime: "17:00",
-    lectureLength: 60,
-    shortBreaks: {
-      first: {
-        start: "10:30",
-        duration: 10,
-      },
-      second: {
-        start: "14:30",
-        duration: 10,
-      }
-    },
-    lunchBreak: {
-      start: "13:00",
-      duration: 60,
-    },
-  });
+  const [settings, setSettings] = useState<TimeTableSettings>(defaultSettings);
 
   useEffect(() => {
     const savedSettings = localStorage.getItem("timetableSettings");
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+      const parsedSettings = JSON.parse(savedSettings);
+      // Ensure all required properties exist
+      setSettings({
+        ...defaultSettings,
+        ...parsedSettings,
+        shortBreaks: {
+          ...defaultSettings.shortBreaks,
+          ...parsedSettings.shortBreaks
+        }
+      });
     }
   }, []);
 

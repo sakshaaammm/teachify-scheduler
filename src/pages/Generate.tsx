@@ -18,7 +18,16 @@ const Generate = () => {
     startTime: "09:00",
     endTime: "17:00",
     lectureLength: 60,
-    breakTime: 10,
+    shortBreaks: {
+      first: {
+        start: "10:30",
+        duration: 10,
+      },
+      second: {
+        start: "14:30",
+        duration: 10,
+      }
+    },
     lunchBreak: {
       start: "13:00",
       duration: 60,
@@ -54,9 +63,24 @@ const Generate = () => {
       // Add lecture length
       currentTime = new Date(currentTime.getTime() + settings.lectureLength * 60000);
       
-      // Add break if not end of day
-      if (currentTime < endTime) {
-        currentTime = new Date(currentTime.getTime() + settings.breakTime * 60000);
+      // Check for breaks
+      const currentTimeStr = currentTime.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+
+      // First short break
+      if (currentTimeStr === settings.shortBreaks.first.start) {
+        currentTime = new Date(currentTime.getTime() + settings.shortBreaks.first.duration * 60000);
+      }
+      // Second short break
+      else if (currentTimeStr === settings.shortBreaks.second.start) {
+        currentTime = new Date(currentTime.getTime() + settings.shortBreaks.second.duration * 60000);
+      }
+      // Lunch break
+      else if (currentTimeStr === settings.lunchBreak.start) {
+        currentTime = new Date(currentTime.getTime() + settings.lunchBreak.duration * 60000);
       }
     }
     return slots;
