@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,9 @@ const Subjects = () => {
   const { data: subjects = [], isLoading } = useQuery({
     queryKey: ['subjects'],
     queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
@@ -45,13 +48,17 @@ const Subjects = () => {
   // Add subject mutation
   const addSubjectMutation = useMutation({
     mutationFn: async (subject: Partial<Subject>) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
       const { data, error } = await supabase
         .from('subjects')
         .insert([{
           name: subject.name,
           is_lab: subject.isLab,
           lab_duration: subject.isLab ? subject.labDuration : null,
-          lectures_per_week: subject.lecturesPerWeek
+          lectures_per_week: subject.lecturesPerWeek,
+          user_id: user.user.id
         }])
         .select()
         .single();

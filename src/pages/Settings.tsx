@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TimeTableSettings } from "@/types";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 const defaultSettings: TimeTableSettings = {
   startTime: "09:00",
@@ -29,26 +31,95 @@ const defaultSettings: TimeTableSettings = {
 const Settings = () => {
   const [settings, setSettings] = useState<TimeTableSettings>(defaultSettings);
 
-  useEffect(() => {
-    const savedSettings = localStorage.getItem("timetableSettings");
-    if (savedSettings) {
-      const parsedSettings = JSON.parse(savedSettings);
-      // Ensure all required properties exist
-      setSettings({
-        ...defaultSettings,
-        ...parsedSettings,
-        shortBreaks: {
-          ...defaultSettings.shortBreaks,
-          ...parsedSettings.shortBreaks
-        }
-      });
+  // Fetch settings
+  const { data: savedSettings, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from('timetable_settings')
+        .select('*')
+        .eq('user_id', user.user.id)
+        .maybeSingle();
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      if (data) {
+        return {
+          startTime: data.start_time,
+          endTime: data.end_time,
+          lectureLength: data.lecture_length,
+          shortBreaks: {
+            first: {
+              start: data.first_break_start,
+              duration: data.first_break_duration,
+            },
+            second: {
+              start: data.second_break_start,
+              duration: data.second_break_duration,
+            }
+          },
+          lunchBreak: {
+            start: data.lunch_break_start,
+            duration: data.lunch_break_duration,
+          },
+        };
+      }
+
+      return defaultSettings;
+    },
+    onSuccess: (data) => {
+      setSettings(data);
     }
-  }, []);
+  });
+
+  // Save settings mutation
+  const saveMutation = useMutation({
+    mutationFn: async (settings: TimeTableSettings) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('timetable_settings')
+        .upsert({
+          user_id: user.user.id,
+          start_time: settings.startTime,
+          end_time: settings.endTime,
+          lecture_length: settings.lectureLength,
+          first_break_start: settings.shortBreaks.first.start,
+          first_break_duration: settings.shortBreaks.first.duration,
+          second_break_start: settings.shortBreaks.second.start,
+          second_break_duration: settings.shortBreaks.second.duration,
+          lunch_break_start: settings.lunchBreak.start,
+          lunch_break_duration: settings.lunchBreak.duration,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Settings saved successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    }
+  });
 
   const handleSave = () => {
-    localStorage.setItem("timetableSettings", JSON.stringify(settings));
-    toast.success("Settings saved successfully!");
+    saveMutation.mutate(settings);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -210,8 +281,12 @@ const Settings = () => {
               />
             </div>
           </div>
-          <Button onClick={handleSave} className="w-full">
-            Save Settings
+          <Button 
+            onClick={handleSave} 
+            className="w-full"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? "Saving..." : "Save Settings"}
           </Button>
         </CardContent>
       </Card>

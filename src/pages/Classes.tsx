@@ -1,34 +1,115 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Class, Subject } from "@/types";
+import { Class } from "@/types";
 import { toast } from "sonner";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const Classes = () => {
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const queryClient = useQueryClient();
   const [newClass, setNewClass] = useState<Partial<Class>>({
     name: "",
     subjects: [],
   });
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const savedClasses = localStorage.getItem("classes");
-    const savedSubjects = localStorage.getItem("subjects");
-    if (savedClasses) {
-      setClasses(JSON.parse(savedClasses));
+  // Fetch classes
+  const { data: classes = [], isLoading: classesLoading } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*, class_subjects(subject_name)')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      return data.map(classItem => ({
+        id: classItem.id,
+        name: classItem.name,
+        subjects: classItem.class_subjects.map(cs => cs.subject_name)
+      }));
     }
-    if (savedSubjects) {
-      setSubjects(JSON.parse(savedSubjects));
+  });
+
+  // Fetch subjects for selection
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('name')
+        .order('name', { ascending: true });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      return data.map(subject => subject.name);
     }
-  }, []);
+  });
+
+  // Add class mutation
+  const addClassMutation = useMutation({
+    mutationFn: async (classData: Partial<Class>) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      // First insert the class
+      const { data: newClass, error: classError } = await supabase
+        .from('classes')
+        .insert([{
+          name: classData.name,
+          user_id: user.user.id
+        }])
+        .select()
+        .single();
+
+      if (classError) throw classError;
+
+      // Then insert the class-subject relationships
+      if (classData.subjects && classData.subjects.length > 0) {
+        const { error: subjectsError } = await supabase
+          .from('class_subjects')
+          .insert(
+            classData.subjects.map(subject => ({
+              class_id: newClass.id,
+              subject_name: subject,
+              user_id: user.user.id
+            }))
+          );
+
+        if (subjectsError) throw subjectsError;
+      }
+
+      return newClass;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      setNewClass({ name: "", subjects: [] });
+      toast.success("Class added successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    }
+  });
 
   const handleAddClass = () => {
     if (!newClass.name) {
@@ -36,18 +117,16 @@ const Classes = () => {
       return;
     }
 
-    const classItem: Class = {
-      id: Date.now().toString(),
-      name: newClass.name,
-      subjects: newClass.subjects || [],
-    };
-
-    const updatedClasses = [...classes, classItem];
-    setClasses(updatedClasses);
-    localStorage.setItem("classes", JSON.stringify(updatedClasses));
-    setNewClass({ name: "", subjects: [] });
-    toast.success("Class added successfully!");
+    addClassMutation.mutate(newClass);
   };
+
+  if (classesLoading || subjectsLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -88,12 +167,12 @@ const Classes = () => {
                   <CommandGroup>
                     {subjects.map((subject) => (
                       <CommandItem
-                        key={subject.id}
+                        key={subject}
                         onSelect={() => {
-                          const isSelected = newClass.subjects?.includes(subject.name);
+                          const isSelected = newClass.subjects?.includes(subject);
                           const updatedSubjects = isSelected
-                            ? newClass.subjects?.filter((s) => s !== subject.name)
-                            : [...(newClass.subjects || []), subject.name];
+                            ? newClass.subjects?.filter((s) => s !== subject)
+                            : [...(newClass.subjects || []), subject];
                           setNewClass({
                             ...newClass,
                             subjects: updatedSubjects,
@@ -103,12 +182,12 @@ const Classes = () => {
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            newClass.subjects?.includes(subject.name)
+                            newClass.subjects?.includes(subject)
                               ? "opacity-100"
                               : "opacity-0"
                           )}
                         />
-                        {subject.name}
+                        {subject}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -116,8 +195,12 @@ const Classes = () => {
               </PopoverContent>
             </Popover>
           </div>
-          <Button onClick={handleAddClass} className="w-full">
-            Add Class
+          <Button 
+            onClick={handleAddClass} 
+            className="w-full"
+            disabled={addClassMutation.isPending}
+          >
+            {addClassMutation.isPending ? "Adding..." : "Add Class"}
           </Button>
         </CardContent>
       </Card>
