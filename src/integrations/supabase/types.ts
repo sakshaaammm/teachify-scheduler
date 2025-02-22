@@ -9,7 +9,178 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      class_subjects: {
+        Row: {
+          class_id: string
+          subject_name: string
+          user_id: string
+        }
+        Insert: {
+          class_id: string
+          subject_name: string
+          user_id: string
+        }
+        Update: {
+          class_id?: string
+          subject_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_subjects_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          created_at: string
+          id: string
+          is_lab: boolean | null
+          lab_duration: number | null
+          lectures_per_week: number | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_lab?: boolean | null
+          lab_duration?: number | null
+          lectures_per_week?: number | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_lab?: boolean | null
+          lab_duration?: number | null
+          lectures_per_week?: number | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      teacher_subjects: {
+        Row: {
+          subject_name: string
+          teacher_id: string
+          user_id: string
+        }
+        Insert: {
+          subject_name: string
+          teacher_id: string
+          user_id: string
+        }
+        Update: {
+          subject_name?: string
+          teacher_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_subjects_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teachers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          preferred_end_time: string | null
+          preferred_hours: number | null
+          preferred_start_time: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          preferred_end_time?: string | null
+          preferred_hours?: number | null
+          preferred_start_time?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          preferred_end_time?: string | null
+          preferred_hours?: number | null
+          preferred_start_time?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      timetable_settings: {
+        Row: {
+          end_time: string
+          first_break_duration: number
+          first_break_start: string
+          lecture_length: number
+          lunch_break_duration: number
+          lunch_break_start: string
+          second_break_duration: number
+          second_break_start: string
+          start_time: string
+          user_id: string
+        }
+        Insert: {
+          end_time?: string
+          first_break_duration?: number
+          first_break_start?: string
+          lecture_length?: number
+          lunch_break_duration?: number
+          lunch_break_start?: string
+          second_break_duration?: number
+          second_break_start?: string
+          start_time?: string
+          user_id: string
+        }
+        Update: {
+          end_time?: string
+          first_break_duration?: number
+          first_break_start?: string
+          lecture_length?: number
+          lunch_break_duration?: number
+          lunch_break_start?: string
+          second_break_duration?: number
+          second_break_start?: string
+          start_time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

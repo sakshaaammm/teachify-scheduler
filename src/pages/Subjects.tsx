@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Subject } from "@/types";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const Subjects = () => {
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const queryClient = useQueryClient();
   const [newSubject, setNewSubject] = useState<Partial<Subject>>({
     name: "",
     isLab: false,
@@ -16,12 +18,61 @@ const Subjects = () => {
     lecturesPerWeek: 1,
   });
 
-  useEffect(() => {
-    const savedSubjects = localStorage.getItem("subjects");
-    if (savedSubjects) {
-      setSubjects(JSON.parse(savedSubjects));
+  // Fetch subjects
+  const { data: subjects = [], isLoading } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      return data.map(subject => ({
+        id: subject.id,
+        name: subject.name,
+        isLab: subject.is_lab,
+        labDuration: subject.lab_duration,
+        lecturesPerWeek: subject.lectures_per_week
+      }));
     }
-  }, []);
+  });
+
+  // Add subject mutation
+  const addSubjectMutation = useMutation({
+    mutationFn: async (subject: Partial<Subject>) => {
+      const { data, error } = await supabase
+        .from('subjects')
+        .insert([{
+          name: subject.name,
+          is_lab: subject.isLab,
+          lab_duration: subject.isLab ? subject.labDuration : null,
+          lectures_per_week: subject.lecturesPerWeek
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      setNewSubject({
+        name: "",
+        isLab: false,
+        labDuration: 2,
+        lecturesPerWeek: 1,
+      });
+      toast.success("Subject added successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    }
+  });
 
   const handleAddSubject = () => {
     if (!newSubject.name) {
@@ -29,25 +80,16 @@ const Subjects = () => {
       return;
     }
 
-    const subject: Subject = {
-      id: Date.now().toString(),
-      name: newSubject.name,
-      isLab: newSubject.isLab || false,
-      labDuration: newSubject.isLab ? newSubject.labDuration : undefined,
-      lecturesPerWeek: newSubject.lecturesPerWeek || 1,
-    };
-
-    const updatedSubjects = [...subjects, subject];
-    setSubjects(updatedSubjects);
-    localStorage.setItem("subjects", JSON.stringify(updatedSubjects));
-    setNewSubject({
-      name: "",
-      isLab: false,
-      labDuration: 2,
-      lecturesPerWeek: 1,
-    });
-    toast.success("Subject added successfully!");
+    addSubjectMutation.mutate(newSubject);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -107,8 +149,12 @@ const Subjects = () => {
               min={1}
             />
           </div>
-          <Button onClick={handleAddSubject} className="w-full">
-            Add Subject
+          <Button 
+            onClick={handleAddSubject} 
+            className="w-full"
+            disabled={addSubjectMutation.isPending}
+          >
+            {addSubjectMutation.isPending ? "Adding..." : "Add Subject"}
           </Button>
         </CardContent>
       </Card>
