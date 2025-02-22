@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,14 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Teachers = () => {
   const queryClient = useQueryClient();
@@ -25,8 +32,8 @@ const Teachers = () => {
     },
   });
   const [open, setOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
-  // Fetch teachers
   const { data: teachers = [], isLoading: teachersLoading } = useQuery({
     queryKey: ['teachers'],
     queryFn: async () => {
@@ -57,7 +64,6 @@ const Teachers = () => {
     }
   });
 
-  // Fetch subjects for selection
   const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
     queryKey: ['subjects'],
     queryFn: async () => {
@@ -78,13 +84,11 @@ const Teachers = () => {
     }
   });
 
-  // Add teacher mutation
   const addTeacherMutation = useMutation({
     mutationFn: async (teacher: Partial<Teacher>) => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
 
-      // First insert the teacher
       const { data: newTeacher, error: teacherError } = await supabase
         .from('teachers')
         .insert([{
@@ -99,7 +103,6 @@ const Teachers = () => {
 
       if (teacherError) throw teacherError;
 
-      // Then insert the teacher-subject relationships
       if (teacher.subjects && teacher.subjects.length > 0) {
         const { error: subjectsError } = await supabase
           .from('teacher_subjects')
@@ -135,6 +138,27 @@ const Teachers = () => {
     }
   });
 
+  const deleteTeacherMutation = useMutation({
+    mutationFn: async (teacher: Teacher) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('teachers')
+        .delete()
+        .eq('id', teacher.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success("Teacher deleted successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    }
+  });
+
   const handleAddTeacher = () => {
     if (!newTeacher.name) {
       toast.error("Please enter teacher name");
@@ -142,6 +166,12 @@ const Teachers = () => {
     }
 
     addTeacherMutation.mutate(newTeacher);
+  };
+
+  const handleDelete = (teacher: Teacher) => {
+    if (window.confirm(`Are you sure you want to delete ${teacher.name}?`)) {
+      deleteTeacherMutation.mutate(teacher);
+    }
   };
 
   if (teachersLoading || subjectsLoading) {
@@ -282,7 +312,22 @@ const Teachers = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teachers.map((teacher) => (
-          <Card key={teacher.id} className="glass-card animate-float">
+          <Card 
+            key={teacher.id} 
+            className="glass-card animate-float cursor-pointer relative group"
+            onClick={() => setSelectedTeacher(teacher)}
+          >
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(teacher);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
             <CardHeader>
               <CardTitle>{teacher.name}</CardTitle>
             </CardHeader>
@@ -295,6 +340,33 @@ const Teachers = () => {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!selectedTeacher} onOpenChange={() => setSelectedTeacher(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedTeacher?.name}</DialogTitle>
+            <DialogDescription>
+              <div className="mt-4 space-y-2">
+                <p>Weekly Hours: {selectedTeacher?.preferredHours}</p>
+                <p>Preferred Start Time: {selectedTeacher?.preferences.startTime || "Flexible"}</p>
+                <p>Preferred End Time: {selectedTeacher?.preferences.endTime || "Flexible"}</p>
+                <div>
+                  <h3 className="font-semibold mb-2">Assigned Subjects:</h3>
+                  {selectedTeacher?.subjects.length ? (
+                    <ul className="list-disc pl-4">
+                      {selectedTeacher.subjects.map((subject, index) => (
+                        <li key={index}>{subject}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No subjects assigned</p>
+                  )}
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

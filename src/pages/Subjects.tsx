@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,14 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Subjects = () => {
   const queryClient = useQueryClient();
@@ -17,6 +24,7 @@ const Subjects = () => {
     labDuration: 2,
     lecturesPerWeek: 1,
   });
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
   // Fetch subjects
   const { data: subjects = [], isLoading } = useQuery({
@@ -81,6 +89,28 @@ const Subjects = () => {
     }
   });
 
+  // Delete subject mutation
+  const deleteSubjectMutation = useMutation({
+    mutationFn: async (subject: Subject) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('subjects')
+        .delete()
+        .eq('id', subject.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      toast.success("Subject deleted successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    }
+  });
+
   const handleAddSubject = () => {
     if (!newSubject.name) {
       toast.error("Please enter subject name");
@@ -88,6 +118,12 @@ const Subjects = () => {
     }
 
     addSubjectMutation.mutate(newSubject);
+  };
+
+  const handleDelete = (subject: Subject) => {
+    if (window.confirm(`Are you sure you want to delete ${subject.name}?`)) {
+      deleteSubjectMutation.mutate(subject);
+    }
   };
 
   if (isLoading) {
@@ -168,7 +204,22 @@ const Subjects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {subjects.map((subject) => (
-          <Card key={subject.id} className="glass-card animate-float">
+          <Card 
+            key={subject.id} 
+            className="glass-card animate-float cursor-pointer relative group"
+            onClick={() => setSelectedSubject(subject)}
+          >
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(subject);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
             <CardHeader>
               <CardTitle>{subject.name}</CardTitle>
             </CardHeader>
@@ -180,6 +231,23 @@ const Subjects = () => {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!selectedSubject} onOpenChange={() => setSelectedSubject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedSubject?.name}</DialogTitle>
+            <DialogDescription>
+              <div className="mt-4 space-y-2">
+                <p>Type: {selectedSubject?.isLab ? "Lab" : "Theory"}</p>
+                {selectedSubject?.isLab && (
+                  <p>Lab Duration: {selectedSubject.labDuration} hours</p>
+                )}
+                <p>Lectures per week: {selectedSubject?.lecturesPerWeek}</p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

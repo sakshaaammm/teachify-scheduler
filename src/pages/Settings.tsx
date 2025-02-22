@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 const defaultSettings: TimeTableSettings = {
   startTime: "09:00",
@@ -72,11 +72,14 @@ const Settings = () => {
       }
 
       return defaultSettings;
-    },
-    onSuccess: (data) => {
-      setSettings(data);
     }
   });
+
+  useEffect(() => {
+    if (savedSettings) {
+      setSettings(savedSettings);
+    }
+  }, [savedSettings]);
 
   // Save settings mutation
   const saveMutation = useMutation({
