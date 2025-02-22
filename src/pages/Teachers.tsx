@@ -3,12 +3,16 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Teacher } from "@/types";
+import { Teacher, Subject } from "@/types";
 import { toast } from "sonner";
-import { Select } from "@/components/ui/select";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const Teachers = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [newTeacher, setNewTeacher] = useState<Partial<Teacher>>({
     name: "",
     subjects: [],
@@ -19,11 +23,16 @@ const Teachers = () => {
       preferredSlots: [],
     },
   });
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const savedTeachers = localStorage.getItem("teachers");
+    const savedSubjects = localStorage.getItem("subjects");
     if (savedTeachers) {
       setTeachers(JSON.parse(savedTeachers));
+    }
+    if (savedSubjects) {
+      setSubjects(JSON.parse(savedSubjects));
     }
   }, []);
 
@@ -127,6 +136,57 @@ const Teachers = () => {
                 }
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <label>Subjects</label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {newTeacher.subjects?.length
+                    ? `${newTeacher.subjects.length} subjects selected`
+                    : "Select subjects..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search subjects..." />
+                  <CommandEmpty>No subject found.</CommandEmpty>
+                  <CommandGroup>
+                    {subjects.map((subject) => (
+                      <CommandItem
+                        key={subject.id}
+                        onSelect={() => {
+                          const isSelected = newTeacher.subjects?.includes(subject.name);
+                          const updatedSubjects = isSelected
+                            ? newTeacher.subjects?.filter((s) => s !== subject.name)
+                            : [...(newTeacher.subjects || []), subject.name];
+                          setNewTeacher({
+                            ...newTeacher,
+                            subjects: updatedSubjects,
+                          });
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            newTeacher.subjects?.includes(subject.name)
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        {subject.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <Button onClick={handleAddTeacher} className="w-full">
             Add Teacher

@@ -1,13 +1,29 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen, GraduationCap, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Teacher, Subject, Class } from "@/types";
 
 const Dashboard = () => {
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+
+  useEffect(() => {
+    const savedTeachers = localStorage.getItem("teachers");
+    const savedSubjects = localStorage.getItem("subjects");
+    const savedClasses = localStorage.getItem("classes");
+
+    if (savedTeachers) setTeachers(JSON.parse(savedTeachers));
+    if (savedSubjects) setSubjects(JSON.parse(savedSubjects));
+    if (savedClasses) setClasses(JSON.parse(savedClasses));
+  }, []);
+
   const stats = [
-    { title: "Teachers", value: "12", icon: Users },
-    { title: "Subjects", value: "24", icon: BookOpen },
-    { title: "Classes", value: "8", icon: GraduationCap },
-    { title: "Timetables", value: "4", icon: Calendar },
+    { title: "Teachers", value: teachers.length.toString(), icon: Users },
+    { title: "Subjects", value: subjects.length.toString(), icon: BookOpen },
+    { title: "Classes", value: classes.length.toString(), icon: GraduationCap },
+    { title: "Timetables", value: "1", icon: Calendar },
   ];
 
   return (
