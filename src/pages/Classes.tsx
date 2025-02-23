@@ -25,7 +25,7 @@ const Classes = () => {
     name: "",
     subjects: [],
   });
-  const [open, setOpen] = useState(false);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
 
   const { data: classes = [], isLoading: classesLoading } = useQuery({
@@ -153,6 +153,20 @@ const Classes = () => {
     }
   };
 
+  const handleSubjectToggle = (subject: string) => {
+    setNewClass(prev => {
+      const isSelected = prev.subjects?.includes(subject);
+      const updatedSubjects = isSelected
+        ? (prev.subjects || []).filter(s => s !== subject)
+        : [...(prev.subjects || []), subject];
+      return {
+        ...prev,
+        subjects: updatedSubjects
+      };
+    });
+    setSubjectsOpen(true);
+  };
+
   if (classesLoading || subjectsLoading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -179,12 +193,12 @@ const Classes = () => {
           </div>
           <div className="space-y-2">
             <label>Subjects</label>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={subjectsOpen} onOpenChange={setSubjectsOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
-                  aria-expanded={open}
+                  aria-expanded={subjectsOpen}
                   className="w-full justify-between"
                 >
                   {newClass.subjects?.length
@@ -201,18 +215,9 @@ const Classes = () => {
                     {subjects.map((subject) => (
                       <CommandItem
                         key={subject}
-                        onSelect={() => {
-                          const isSelected = newClass.subjects?.includes(subject);
-                          const updatedSubjects = isSelected
-                            ? (newClass.subjects || []).filter((s) => s !== subject)
-                            : [...(newClass.subjects || []), subject];
-                          setNewClass({
-                            ...newClass,
-                            subjects: updatedSubjects,
-                          });
-                        }}
+                        onSelect={() => handleSubjectToggle(subject)}
                       >
-                        {subject}
+                        <span>{subject}</span>
                         <Check
                           className={cn(
                             "ml-auto h-4 w-4",

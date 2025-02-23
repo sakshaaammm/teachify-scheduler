@@ -135,7 +135,7 @@ const Teachers = () => {
           preferredSlots: [],
         },
       });
-      setOpen(false);
+      setSubjectsOpen(false);
       toast.success("Teacher added successfully!");
     },
     onError: (error: any) => {
@@ -177,22 +177,17 @@ const Teachers = () => {
   };
 
   const handleSubjectToggle = (subject: string) => {
-    console.log("Toggling subject:", subject);
-    console.log("Current subjects:", newTeacher.subjects);
-    
     setNewTeacher(prev => {
       const isSelected = prev.subjects?.includes(subject);
       const updatedSubjects = isSelected
         ? (prev.subjects || []).filter(s => s !== subject)
         : [...(prev.subjects || []), subject];
-      
-      console.log("Updated subjects:", updatedSubjects);
-      
       return {
         ...prev,
         subjects: updatedSubjects
       };
     });
+    setSubjectsOpen(true);
   };
 
   if (teachersLoading || subjectsLoading) {
@@ -296,7 +291,7 @@ const Teachers = () => {
                         key={subject}
                         onSelect={() => handleSubjectToggle(subject)}
                       >
-                        {subject}
+                        <span>{subject}</span>
                         <Check
                           className={cn(
                             "ml-auto h-4 w-4",
