@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ const Classes = () => {
         throw error;
       }
 
-      return data.map(classItem => ({
+      return (data || []).map(classItem => ({
         id: classItem.id,
         name: classItem.name,
         subjects: (classItem.class_subjects || []).map(cs => cs.subject_name)
@@ -79,6 +80,7 @@ const Classes = () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
 
+      // First insert the class
       const { data: newClass, error: classError } = await supabase
         .from('classes')
         .insert([{
@@ -90,6 +92,7 @@ const Classes = () => {
 
       if (classError) throw classError;
 
+      // Then insert the class-subject relationships if there are any subjects
       if (classData.subjects && classData.subjects.length > 0) {
         const { error: subjectsError } = await supabase
           .from('class_subjects')
@@ -101,7 +104,11 @@ const Classes = () => {
             }))
           );
 
-        if (subjectsError) throw subjectsError;
+        if (subjectsError) {
+          // If adding subjects fails, delete the class to maintain consistency
+          await supabase.from('classes').delete().eq('id', newClass.id);
+          throw subjectsError;
+        }
       }
 
       return newClass;
@@ -109,6 +116,7 @@ const Classes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['classes'] });
       setNewClass({ name: "", subjects: [] });
+      setOpen(false);
       toast.success("Class added successfully!");
     },
     onError: (error: any) => {
@@ -118,9 +126,6 @@ const Classes = () => {
 
   const deleteClassMutation = useMutation({
     mutationFn: async (classItem: Class) => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
-
       const { error } = await supabase
         .from('classes')
         .delete()
@@ -192,7 +197,7 @@ const Classes = () => {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
+              <PopoverContent className="w-full p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search subjects..." />
                   <CommandEmpty>No subject found.</CommandEmpty>
@@ -200,6 +205,7 @@ const Classes = () => {
                     {(subjects || []).map((subject) => (
                       <CommandItem
                         key={subject}
+                        value={subject}
                         onSelect={() => {
                           const isSelected = newClass.subjects?.includes(subject);
                           const updatedSubjects = isSelected
@@ -259,7 +265,7 @@ const Classes = () => {
               <CardTitle>{classItem.name}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Subjects: {classItem.subjects.join(", ") || "None assigned"}</p>
+              <p>Subjects: {classItem.subjects?.join(", ") || "None assigned"}</p>
             </CardContent>
           </Card>
         ))}
@@ -272,7 +278,7 @@ const Classes = () => {
             <DialogDescription>
               <div className="mt-4">
                 <h3 className="font-semibold mb-2">Assigned Subjects:</h3>
-                {selectedClass?.subjects.length ? (
+                {selectedClass?.subjects?.length ? (
                   <ul className="list-disc pl-4">
                     {selectedClass.subjects.map((subject, index) => (
                       <li key={index}>{subject}</li>

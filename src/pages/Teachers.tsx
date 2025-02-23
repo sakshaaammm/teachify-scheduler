@@ -34,7 +34,6 @@ const Teachers = () => {
   const [open, setOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
-  // Fetch teachers with proper error handling
   const { data: teachers = [], isLoading: teachersLoading } = useQuery({
     queryKey: ['teachers'],
     queryFn: async () => {
@@ -51,7 +50,7 @@ const Teachers = () => {
         throw error;
       }
 
-      return data.map(teacher => ({
+      return (data || []).map(teacher => ({
         id: teacher.id,
         name: teacher.name,
         preferredHours: teacher.preferred_hours,
@@ -66,7 +65,6 @@ const Teachers = () => {
     enabled: !!supabase.auth.getSession()
   });
 
-  // Fetch subjects with proper error handling
   const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
     queryKey: ['subjects'],
     queryFn: async () => {
@@ -88,7 +86,6 @@ const Teachers = () => {
     enabled: !!supabase.auth.getSession()
   });
 
-  // Add teacher mutation
   const addTeacherMutation = useMutation({
     mutationFn: async (teacher: Partial<Teacher>) => {
       const { data: user } = await supabase.auth.getUser();
@@ -100,8 +97,8 @@ const Teachers = () => {
         .insert([{
           name: teacher.name,
           preferred_hours: teacher.preferredHours,
-          preferred_start_time: teacher.preferences?.startTime,
-          preferred_end_time: teacher.preferences?.endTime,
+          preferred_start_time: teacher.preferences?.startTime || null,
+          preferred_end_time: teacher.preferences?.endTime || null,
           user_id: user.user.id
         }])
         .select()
@@ -109,7 +106,7 @@ const Teachers = () => {
 
       if (teacherError) throw teacherError;
 
-      // Then insert the teacher-subject relationships
+      // Then insert the teacher-subject relationships if there are any subjects
       if (teacher.subjects && teacher.subjects.length > 0) {
         const { error: subjectsError } = await supabase
           .from('teacher_subjects')
@@ -121,7 +118,11 @@ const Teachers = () => {
             }))
           );
 
-        if (subjectsError) throw subjectsError;
+        if (subjectsError) {
+          // If adding subjects fails, delete the teacher to maintain consistency
+          await supabase.from('teachers').delete().eq('id', newTeacher.id);
+          throw subjectsError;
+        }
       }
 
       return newTeacher;
@@ -138,6 +139,7 @@ const Teachers = () => {
           preferredSlots: [],
         },
       });
+      setOpen(false);
       toast.success("Teacher added successfully!");
     },
     onError: (error: any) => {
@@ -145,12 +147,8 @@ const Teachers = () => {
     }
   });
 
-  // Delete teacher mutation
   const deleteTeacherMutation = useMutation({
     mutationFn: async (teacher: Teacher) => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
-
       const { error } = await supabase
         .from('teachers')
         .delete()
@@ -216,7 +214,7 @@ const Teachers = () => {
               onChange={(e) =>
                 setNewTeacher({
                   ...newTeacher,
-                  preferredHours: parseInt(e.target.value),
+                  preferredHours: parseInt(e.target.value) || 0,
                 })
               }
               min={0}
@@ -273,7 +271,7 @@ const Teachers = () => {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
+              <PopoverContent className="w-full p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search subjects..." />
                   <CommandEmpty>No subject found.</CommandEmpty>
@@ -281,6 +279,7 @@ const Teachers = () => {
                     {(subjects || []).map((subject) => (
                       <CommandItem
                         key={subject}
+                        value={subject}
                         onSelect={() => {
                           const isSelected = newTeacher.subjects?.includes(subject);
                           const updatedSubjects = isSelected
@@ -290,7 +289,6 @@ const Teachers = () => {
                             ...newTeacher,
                             subjects: updatedSubjects,
                           });
-                          setOpen(false);
                         }}
                       >
                         <Check
@@ -320,7 +318,7 @@ const Teachers = () => {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(teachers || []).map((teacher) => (
+        {teachers.map((teacher) => (
           <Card 
             key={teacher.id} 
             className="glass-card animate-float cursor-pointer relative group"
@@ -344,7 +342,7 @@ const Teachers = () => {
               <p>Weekly Hours: {teacher.preferredHours}</p>
               <p>Start Time: {teacher.preferences.startTime || "Flexible"}</p>
               <p>End Time: {teacher.preferences.endTime || "Flexible"}</p>
-              <p>Subjects: {teacher.subjects.join(", ") || "None assigned"}</p>
+              <p>Subjects: {teacher.subjects?.join(", ") || "None assigned"}</p>
             </CardContent>
           </Card>
         ))}
