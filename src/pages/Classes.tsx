@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,7 +79,6 @@ const Classes = () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
 
-      // First insert the class
       const { data: newClass, error: classError } = await supabase
         .from('classes')
         .insert([{
@@ -92,7 +90,6 @@ const Classes = () => {
 
       if (classError) throw classError;
 
-      // Then insert the class-subject relationships if there are any subjects
       if (classData.subjects && classData.subjects.length > 0) {
         const { error: subjectsError } = await supabase
           .from('class_subjects')
@@ -105,7 +102,6 @@ const Classes = () => {
           );
 
         if (subjectsError) {
-          // If adding subjects fails, delete the class to maintain consistency
           await supabase.from('classes').delete().eq('id', newClass.id);
           throw subjectsError;
         }
@@ -197,19 +193,18 @@ const Classes = () => {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
+              <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search subjects..." />
                   <CommandEmpty>No subject found.</CommandEmpty>
                   <CommandGroup>
-                    {(subjects || []).map((subject) => (
+                    {subjects.map((subject) => (
                       <CommandItem
                         key={subject}
-                        value={subject}
                         onSelect={() => {
                           const isSelected = newClass.subjects?.includes(subject);
                           const updatedSubjects = isSelected
-                            ? newClass.subjects?.filter((s) => s !== subject)
+                            ? (newClass.subjects || []).filter((s) => s !== subject)
                             : [...(newClass.subjects || []), subject];
                           setNewClass({
                             ...newClass,
@@ -217,15 +212,15 @@ const Classes = () => {
                           });
                         }}
                       >
+                        {subject}
                         <Check
                           className={cn(
-                            "mr-2 h-4 w-4",
+                            "ml-auto h-4 w-4",
                             newClass.subjects?.includes(subject)
                               ? "opacity-100"
                               : "opacity-0"
                           )}
                         />
-                        {subject}
                       </CommandItem>
                     ))}
                   </CommandGroup>
