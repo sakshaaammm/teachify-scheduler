@@ -47,9 +47,10 @@ const Classes = () => {
       return data.map(classItem => ({
         id: classItem.id,
         name: classItem.name,
-        subjects: classItem.class_subjects.map(cs => cs.subject_name)
+        subjects: (classItem.class_subjects || []).map(cs => cs.subject_name)
       }));
-    }
+    },
+    enabled: !!supabase.auth.getSession()
   });
 
   const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
@@ -68,8 +69,9 @@ const Classes = () => {
         throw error;
       }
 
-      return data.map(subject => subject.name);
-    }
+      return data?.map(subject => subject.name) || [];
+    },
+    enabled: !!supabase.auth.getSession()
   });
 
   const addClassMutation = useMutation({
@@ -195,7 +197,7 @@ const Classes = () => {
                   <CommandInput placeholder="Search subjects..." />
                   <CommandEmpty>No subject found.</CommandEmpty>
                   <CommandGroup>
-                    {subjects.map((subject) => (
+                    {(subjects || []).map((subject) => (
                       <CommandItem
                         key={subject}
                         onSelect={() => {
