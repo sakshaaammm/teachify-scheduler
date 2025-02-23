@@ -1,16 +1,16 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Teacher } from "@/types";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,7 @@ const Teachers = () => {
   const [open, setOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
+  // Fetch teachers with proper error handling
   const { data: teachers = [], isLoading: teachersLoading } = useQuery({
     queryKey: ['teachers'],
     queryFn: async () => {
@@ -54,16 +55,18 @@ const Teachers = () => {
         id: teacher.id,
         name: teacher.name,
         preferredHours: teacher.preferred_hours,
-        subjects: teacher.teacher_subjects.map(ts => ts.subject_name),
+        subjects: (teacher.teacher_subjects || []).map(ts => ts.subject_name),
         preferences: {
           startTime: teacher.preferred_start_time,
           endTime: teacher.preferred_end_time,
           preferredSlots: [],
         },
       }));
-    }
+    },
+    enabled: !!supabase.auth.getSession()
   });
 
+  // Fetch subjects with proper error handling
   const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
     queryKey: ['subjects'],
     queryFn: async () => {
@@ -80,15 +83,18 @@ const Teachers = () => {
         throw error;
       }
 
-      return data.map(subject => subject.name);
-    }
+      return data?.map(subject => subject.name) || [];
+    },
+    enabled: !!supabase.auth.getSession()
   });
 
+  // Add teacher mutation
   const addTeacherMutation = useMutation({
     mutationFn: async (teacher: Partial<Teacher>) => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
 
+      // First insert the teacher
       const { data: newTeacher, error: teacherError } = await supabase
         .from('teachers')
         .insert([{
@@ -103,6 +109,7 @@ const Teachers = () => {
 
       if (teacherError) throw teacherError;
 
+      // Then insert the teacher-subject relationships
       if (teacher.subjects && teacher.subjects.length > 0) {
         const { error: subjectsError } = await supabase
           .from('teacher_subjects')
@@ -138,6 +145,7 @@ const Teachers = () => {
     }
   });
 
+  // Delete teacher mutation
   const deleteTeacherMutation = useMutation({
     mutationFn: async (teacher: Teacher) => {
       const { data: user } = await supabase.auth.getUser();
@@ -270,7 +278,7 @@ const Teachers = () => {
                   <CommandInput placeholder="Search subjects..." />
                   <CommandEmpty>No subject found.</CommandEmpty>
                   <CommandGroup>
-                    {subjects.map((subject) => (
+                    {(subjects || []).map((subject) => (
                       <CommandItem
                         key={subject}
                         onSelect={() => {
@@ -282,6 +290,7 @@ const Teachers = () => {
                             ...newTeacher,
                             subjects: updatedSubjects,
                           });
+                          setOpen(false);
                         }}
                       >
                         <Check
@@ -311,7 +320,7 @@ const Teachers = () => {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {teachers.map((teacher) => (
+        {(teachers || []).map((teacher) => (
           <Card 
             key={teacher.id} 
             className="glass-card animate-float cursor-pointer relative group"
@@ -352,7 +361,7 @@ const Teachers = () => {
                 <p>Preferred End Time: {selectedTeacher?.preferences.endTime || "Flexible"}</p>
                 <div>
                   <h3 className="font-semibold mb-2">Assigned Subjects:</h3>
-                  {selectedTeacher?.subjects.length ? (
+                  {selectedTeacher?.subjects?.length ? (
                     <ul className="list-disc pl-4">
                       {selectedTeacher.subjects.map((subject, index) => (
                         <li key={index}>{subject}</li>
