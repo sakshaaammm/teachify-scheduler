@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,7 @@ const Teachers = () => {
       preferredSlots: [],
     },
   });
-  const [open, setOpen] = useState(false);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
   const { data: teachers = [], isLoading: teachersLoading } = useQuery({
@@ -91,7 +90,6 @@ const Teachers = () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
 
-      // First insert the teacher
       const { data: newTeacher, error: teacherError } = await supabase
         .from('teachers')
         .insert([{
@@ -106,7 +104,6 @@ const Teachers = () => {
 
       if (teacherError) throw teacherError;
 
-      // Then insert the teacher-subject relationships if there are any subjects
       if (teacher.subjects && teacher.subjects.length > 0) {
         const { error: subjectsError } = await supabase
           .from('teacher_subjects')
@@ -119,7 +116,6 @@ const Teachers = () => {
           );
 
         if (subjectsError) {
-          // If adding subjects fails, delete the teacher to maintain consistency
           await supabase.from('teachers').delete().eq('id', newTeacher.id);
           throw subjectsError;
         }
@@ -178,6 +174,25 @@ const Teachers = () => {
     if (window.confirm(`Are you sure you want to delete ${teacher.name}?`)) {
       deleteTeacherMutation.mutate(teacher);
     }
+  };
+
+  const handleSubjectToggle = (subject: string) => {
+    console.log("Toggling subject:", subject);
+    console.log("Current subjects:", newTeacher.subjects);
+    
+    setNewTeacher(prev => {
+      const isSelected = prev.subjects?.includes(subject);
+      const updatedSubjects = isSelected
+        ? (prev.subjects || []).filter(s => s !== subject)
+        : [...(prev.subjects || []), subject];
+      
+      console.log("Updated subjects:", updatedSubjects);
+      
+      return {
+        ...prev,
+        subjects: updatedSubjects
+      };
+    });
   };
 
   if (teachersLoading || subjectsLoading) {
@@ -257,12 +272,12 @@ const Teachers = () => {
           </div>
           <div className="space-y-2">
             <label>Subjects</label>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={subjectsOpen} onOpenChange={setSubjectsOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   role="combobox"
-                  aria-expanded={open}
+                  aria-expanded={subjectsOpen}
                   className="w-full justify-between"
                 >
                   {newTeacher.subjects?.length
@@ -271,35 +286,25 @@ const Teachers = () => {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
+              <PopoverContent className="w-[300px] p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search subjects..." />
                   <CommandEmpty>No subject found.</CommandEmpty>
                   <CommandGroup>
-                    {(subjects || []).map((subject) => (
+                    {subjects.map((subject) => (
                       <CommandItem
                         key={subject}
-                        value={subject}
-                        onSelect={() => {
-                          const isSelected = newTeacher.subjects?.includes(subject);
-                          const updatedSubjects = isSelected
-                            ? newTeacher.subjects?.filter((s) => s !== subject)
-                            : [...(newTeacher.subjects || []), subject];
-                          setNewTeacher({
-                            ...newTeacher,
-                            subjects: updatedSubjects,
-                          });
-                        }}
+                        onSelect={() => handleSubjectToggle(subject)}
                       >
+                        {subject}
                         <Check
                           className={cn(
-                            "mr-2 h-4 w-4",
+                            "ml-auto h-4 w-4",
                             newTeacher.subjects?.includes(subject)
                               ? "opacity-100"
                               : "opacity-0"
                           )}
                         />
-                        {subject}
                       </CommandItem>
                     ))}
                   </CommandGroup>
